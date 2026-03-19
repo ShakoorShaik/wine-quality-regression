@@ -2,6 +2,7 @@ import csv
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # Merge the dataset into one and add an indicator to show if it is red or white wine
 red_file = 'winequality-red.csv'
@@ -75,6 +76,29 @@ def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_st
     y_test = test_data.iloc[:,12]
 
     return X_train, y_train, X_test, y_test
+
+
+def normalization(X_train, X_test, is_minmax = False):
+    """
+    Args: 
+    is_minmax: True means using minmaxscaling, else use standardsclaer
+    X_train: -
+    X_test: -
+    Output:
+    X_train_normalized: normalized training set
+    X_test_normalized: normalized test set
+    scaler: for later use
+    """
+    if is_minmax:
+        scaler = MinMaxScaler()
+    else:
+        scaler = StandardScaler()
+    
+    X_train_normalized = scaler.fit_transform(X_train)
+    X_test_normalized = scaler.transform(X_test)
+
+    return X_train_normalized, X_test_normalized, scaler
+
 
 
 
