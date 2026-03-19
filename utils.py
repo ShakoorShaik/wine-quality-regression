@@ -1,13 +1,9 @@
 import csv
-import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import numpy as np
 
-# Merge the dataset into one and add an indicator to show if it is red or white wine
-red_file = 'winequality-red.csv'
-white_file = 'winequality-white.csv'
-output_file = 'winequality-modified.csv'
 
 def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_state=42):
     """
@@ -98,6 +94,46 @@ def normalization(X_train, X_test, is_minmax = False):
     X_test_normalized = scaler.transform(X_test)
 
     return X_train_normalized, X_test_normalized, scaler
+
+def hp_search_grid(alg_type, y_train):
+    """
+    Args:
+    alg_type: "knn", "lb"-local bayesian, "ann", "bfr"-basis function regression
+    y_train: -
+    """
+    n = len(y_train)
+    if alg_type == 'knn':
+        sqrt_n = int(np.sqrt(len(y_train)))
+        k_values = np.concatenate([
+        np.arange(1, sqrt_n, 2),
+        np.logspace(np.log10(sqrt_n), np.log10(n//2), 20)
+        ]).astype(int)
+        k_values = np.unique(k_values)
+        return {'k': k_values}
+    
+    elif alg_type == 'ann':
+        return {'num_layers':[1,2,3], 
+                'num_units':[32,64,128]}
+    
+    elif alg_type == 'bfr':
+        return {'width':[], 
+                'center':[], 
+                'regularization':[]}
+    
+    elif alg_type == 'lb':
+        sqrt_n = int(np.sqrt(len(y_train)))
+        k_values = np.concatenate([
+        np.arange(1, sqrt_n, 2),
+        np.logspace(np.log10(sqrt_n), np.log10(n//2), 20)
+        ]).astype(int)
+        k_values = np.unique(k_values)
+        return {'k': k_values, 
+                'weights': ['uniform', 'distance'],
+                'alpha_1': [1e-6, 1e-4, 1e-2], # regularization for bias, assuming bias follows some informative prior
+                'lambda_1': [1e-6, 1e-4, 1e-2]} # regularization for weights, assuming Gaussian prior
+    else:
+        print("you might key in the wrong alg name")
+        raise KeyError
 
 
 
