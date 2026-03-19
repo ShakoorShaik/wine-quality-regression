@@ -1,6 +1,7 @@
 from utils import preprocessing as pp
 from utils import normalization as nz
 from utils import hp_search_grid as hp
+from utils import calculate_metrics as cm
 from sklearn.neighbors import NearestNeighbors
 from sklearn.linear_model import BayesianRidge
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
@@ -21,9 +22,16 @@ def local_prediction(i, inx_i, dist_i, normed_X_train, y_train, normed_X_test_i,
     # 拟合局部模型
     lbr = BayesianRidge(alpha_1=reg[0], lambda_1=reg[1])
     lbr.fit(X_local, y_local, sample_weight=sw)
+    pred = lbr.predict(normed_X_test_i.reshape(1, -1))[0]
+    final_lambda = lbr.lambda_
+    final_alpha = lbr.alpha_
     
     # 预测并返回标量
-    return lbr.predict(normed_X_test_i.reshape(1, -1))[0]
+    return {
+            "pred": pred,
+            "lambda": final_lambda,
+            "alpha": final_alpha
+        }
 
 # file name
 red_file = 'winequality-red.csv'
@@ -51,26 +59,44 @@ for a in alpha:
 # loop over k
 test_predictions = {}
 for k in near_neigh:
+    best_mse_for_k = float('inf')
+    best_record_for_k = None
+
     nn_engine = NearestNeighbors(n_neighbors=k, algorithm='ball_tree', metric='euclidean')
     nn_engine.fit(normed_X_train)
     dist, inx = nn_engine.kneighbors(normed_X_test, return_distance=True)
     for weight in weight_type:
         for reg in reg_set:
             print(f"Running: k={k}, weight={weight}, reg={reg}")
-            test_prediction = Parallel(n_jobs=-1)(
+            results = Parallel(n_jobs=-1)(
                 delayed(local_prediction)(
                     i, inx[i], dist[i], X_train_np, y_train_np, normed_X_test[i], weight, reg
                 ) 
                 for i in range(len(y_test))
             )
+            test_prediction = [r['pred'] for r in results]
+            lambdas = [r['lambda'] for r in results]
+            alphas = [r['alpha'] for r in results]
 
-            mse = mean_squared_error(y_test, test_prediction)
-            rmse = np.sqrt(mse)
-            mae = mean_absolute_error(y_test, test_prediction)
-            r2 = r2_score(y_test, test_prediction)
-            hits = np.sum(np.abs(np.round(test_prediction) - y_test) <= 1)
-            acc_plus_minus_1 = hits / len(y_test)
-            test_predictions[(k,weight,tuple(reg))] = {"test prediciotn": test_prediction, "mse": mse, "rmse": rmse, "mae": mae, "r2": r2, "acc1": acc_plus_minus_1}
+            mse, rmse, mae, r2, acc1 = cm(y_test, test_prediction)
+
+            if mse < best_mse_for_k:
+                best_mse_for_k = mse
+                best_record_for_k = {
+                    "best_weight": weight,
+                    "best_reg": reg,
+                    "metrics": {
+                        "mse": mse, "rmse": rmse, "mae": mae, "r2": r2, "acc1": acc1
+                    },
+                    "avg_posterior": {
+                        "lambda": np.mean(lambdas),
+                        "alpha": np.mean(alphas)
+                    },
+                    # 如果内存允许，可以存下这份预测用于后续残差分析
+                    "y_pred": test_prediction
+                }
+
+            test_predictions[k] = best_record_for_k
 
             
 
