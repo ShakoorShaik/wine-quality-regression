@@ -121,10 +121,12 @@ def hp_search_grid(alg_type, y_train):
                 'regularization':[]}
     
     elif alg_type == 'lb':
+        min_k = 25 
         sqrt_n = int(np.sqrt(len(y_train)))
+        
         k_values = np.concatenate([
-        np.arange(1, sqrt_n, 2),
-        np.logspace(np.log10(sqrt_n), np.log10(n//2), 20)
+            np.linspace(min_k, sqrt_n, 10),
+            np.logspace(np.log10(sqrt_n), np.log10(len(y_train)//5), 10)
         ]).astype(int)
         k_values = np.unique(k_values)
         return {'k': k_values, 
