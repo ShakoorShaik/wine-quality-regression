@@ -154,7 +154,6 @@ def calculate_metrics(y_true, y_pred):
     r2 = r2_score(y_true, y_pred)
     hits = np.sum(np.abs(np.round(y_pred) - y_true) <= 1)
     acc_plus_minus_1 = hits / len(y_true)
-    acc_score = accuracy_score(y_true, y_pred)
 
-    return mse, rmse, mae, r2, acc_plus_minus_1, acc_score
+    return mse, rmse, mae, r2, acc_plus_minus_1
 
