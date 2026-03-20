@@ -1,0 +1,6 @@
+*.csv
+*.ipynb
+winequality.names
+.venv
+__pycache__
+README.md
