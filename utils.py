@@ -64,13 +64,11 @@ def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_st
 
     # Shuffule the data frac=1 means all shuffled, rd_state for reproductibility, reset index true to reassign the index
     data_shuffled = data.sample(frac=1, random_state=rd_state).reset_index(drop=True)
+    X = data_shuffled.drop('quality', axis=1)
+    y = data_shuffled['quality']
 
     # Train test split
-    train_data, test_data = train_test_split(data_shuffled, test_size=test_size, random_state=rd_state)
-    X_train = train_data.iloc[:,0:12]
-    y_train = train_data.iloc[:,12]
-    X_test = test_data.iloc[:,0:12]
-    y_test = test_data.iloc[:,12]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=rd_state)
 
     return X_train, y_train, X_test, y_test
 
