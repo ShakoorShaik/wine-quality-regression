@@ -75,7 +75,7 @@ def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_st
     return X_train, y_train, X_test, y_test
 
 
-def normalization(X_train, X_test, is_minmax = False):
+def normalization(X_train, X_test, is_minmax=False):
     """
     Args: 
     is_minmax: True means using minmaxscaling, else use standardsclaer
@@ -86,13 +86,22 @@ def normalization(X_train, X_test, is_minmax = False):
     X_test_normalized: normalized test set
     scaler: for later use
     """
+    X_train_cont = X_train.iloc[:, :-1]
+    X_train_cat = X_train.iloc[:, -1:].values
+    
+    X_test_cont = X_test.iloc[:, :-1]
+    X_test_cat = X_test.iloc[:, -1:].values
+    
     if is_minmax:
         scaler = MinMaxScaler()
     else:
         scaler = StandardScaler()
     
-    X_train_normalized = scaler.fit_transform(X_train)
-    X_test_normalized = scaler.transform(X_test)
+    X_train_cont_norm = scaler.fit_transform(X_train_cont)
+    X_test_cont_norm = scaler.transform(X_test_cont)
+    
+    X_train_normalized = np.hstack([X_train_cont_norm, X_train_cat])
+    X_test_normalized = np.hstack([X_test_cont_norm, X_test_cat])
 
     return X_train_normalized, X_test_normalized, scaler
 
