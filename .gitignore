@@ -1,5 +1,5 @@
 *.csv
-pre.ipynb
+*.ipynb
 winequality.names
 .venv
 __pycache__
