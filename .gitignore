@@ -5,3 +5,4 @@ winequality.names
 __pycache__
 README.md
 __pycache__
+*.txt
