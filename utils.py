@@ -3,8 +3,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import numpy as np
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, accuracy_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_state=42):
     """
@@ -64,16 +65,17 @@ def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_st
 
     # Shuffule the data frac=1 means all shuffled, rd_state for reproductibility, reset index true to reassign the index
     data_shuffled = data.sample(frac=1, random_state=rd_state).reset_index(drop=True)
+    X = data_shuffled.drop('quality', axis=1)
+    y = data_shuffled['quality']
 
     # Train test split
-    train_data, test_data = train_test_split(data_shuffled, test_size=test_size, random_state=rd_state)
-    X_train = train_data.iloc[:,0:12]
-    y_train = train_data.iloc[:,12]
-    X_test = test_data.iloc[:,0:12]
-    y_test = test_data.iloc[:,12]
-
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=test_size,
+        random_state=rd_state,
+        stratify=X['red'],       # 0=white, 1=red
+    )
     return X_train, y_train, X_test, y_test
-
 
 def normalization(X_train, X_test, is_minmax=False):
     """
@@ -105,6 +107,34 @@ def normalization(X_train, X_test, is_minmax=False):
 
     return X_train_normalized, X_test_normalized, scaler
 
+def soft_label(y_true, sigma=0.5, min_score=3, max_score=9):
+    y_true = float(y_true)
+
+    if sigma <= 0:
+        return y_true
+
+    scores = np.arange(min_score, max_score + 1, dtype=np.float64)
+    weights = np.exp(-0.5 * ((scores - y_true) / sigma) ** 2)
+    weights /= weights.sum()
+    return float(np.dot(weights, scores))
+
+def smooth_labels(y, sigma=0.5, min_score=3, max_score=9):
+    if hasattr(y, "to_numpy"):
+        y = y.to_numpy(dtype=np.float64)
+    else:
+        y = np.asarray(y, dtype=np.float64)
+
+    y = y.reshape(-1)
+
+    if sigma <= 0:
+        return y.reshape(-1, 1)
+
+    y_smooth = np.array(
+        [soft_label(label, sigma=sigma, min_score=min_score, max_score=max_score) for label in y],
+        dtype=np.float64,
+    )
+    return y_smooth.reshape(-1, 1)
+
 def hp_search_grid(alg_type, y_train):
     """
     Args:
@@ -122,13 +152,45 @@ def hp_search_grid(alg_type, y_train):
         return {'k': k_values}
     
     elif alg_type == 'ann':
-        return {'num_layers':[1,2,3], 
-                'num_units':[32,64,128]}
+        """
+            'hidden_widths': [8, 16, 32, 64],
+            'architectures': [
+                                [8],
+                                [16],
+                                [32],
+                                [64],
+                                [16, 8],
+                                [32, 16],
+                                [64, 16],
+                                [64, 32],
+                            ],
+        """
+        return {
+            'hidden_widths': [16, 32, 64, 128],
+            'architectures': [
+                                [32],
+                                [64],
+                                [128],
+
+                                [32, 16],
+                                [64, 32],
+                                [128, 64],
+                                [128, 32], 
+                                [64, 16],
+                                [128, 16],
+
+                                [128, 64, 32],
+                                [64, 32, 16],  
+                            ],
+        }
     
     elif alg_type == 'bfr':
-        return {'width':[], 
-                'center':[], 
-                'regularization':[]}
+        return {
+        'width':[0.001, 0.01, 0.1, 1, 10],
+        'center':[5, 10, 25, 50, 100],
+        'degree': [1,2,3,4],
+        'regularization':[0.001, 0.01, 0.1, 1, 10]
+        }
     
     elif alg_type == 'lb':
         min_k = 25 
@@ -158,9 +220,50 @@ def calculate_metrics(y_true, y_pred):
     return mse, rmse, mae, r2, acc_plus_minus_1
 
 
+def plot_k_metrics(test_predictions, metrics_type = 'mse'):
+    """
+    Plot metrics vs. k
+    """
+    ks = list(test_predictions.keys())
+    total_metrics = [test_predictions[k]['metrics'][metrics_type] for k in ks]
+    red_metrics = [test_predictions[k]['red_metrics'][metrics_type] for k in ks]
+    white_metrics = [test_predictions[k]['white_metrics'][metrics_type] for k in ks]
 
+    plt.figure(figsize=(10, 6))
+    plt.plot(ks, total_metrics, 'k-o', label=f'Total {metrics_type.upper()}', linewidth=2)
+    plt.plot(ks, red_metrics, 'r--', label=f'Red Wine {metrics_type.upper()}')
+    plt.plot(ks, white_metrics, 'b--', label=f'White Wine {metrics_type.upper()}')
+    
+    # notate the smallest/largest
+    if metrics_type in ('mse','rmse','mae'):
+        plt.axvline(x=ks[np.argmin(total_metrics)], color='black', alpha=0.8, linestyle=':')
+        plt.axvline(x=ks[np.argmin(red_metrics)], color='r', alpha=0.8, linestyle=':')
+        plt.axvline(x=ks[np.argmin(white_metrics)], color='b', alpha=0.8, linestyle=':')
+    else:
+        plt.axvline(x=ks[np.argmax(total_metrics)], color='black', alpha=0.8, linestyle=':')
+        plt.axvline(x=ks[np.argmax(red_metrics)], color='r', alpha=0.8, linestyle=':')
+        plt.axvline(x=ks[np.argmax(white_metrics)], color='b', alpha=0.8, linestyle=':')
+    
+    plt.xlabel('K (Number of Neighbors)')
+    plt.ylabel(f'{metrics_type.upper()}')
+    plt.title('Heterogeneity between Red and White Wine')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
 
-
-
-
-
+def plot_residuals(y_true, y_pred, is_red):
+    """
+    Residual plot
+    """
+    residuals = y_true - y_pred
+    df = pd.DataFrame({
+        'Predicted': y_pred,
+        'Residuals': residuals,
+        'Type': ['Red' if r else 'White' for r in is_red]
+    })
+    
+    g = sns.JointGrid(data=df, x="Predicted", y="Residuals", hue="Type")
+    g.plot_joint(sns.scatterplot, alpha=0.5)
+    g.plot_marginals(sns.kdeplot, fill=True)
+    plt.axhline(y=0, color='black', linestyle='--')
+    plt.show()

@@ -4,3 +4,6 @@ winequality.names
 .venv
 __pycache__
 .vscode
+README.md
+__pycache__
+*.txt
