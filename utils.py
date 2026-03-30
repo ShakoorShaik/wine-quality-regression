@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, a
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_state=42):
+def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_state=42, stratify = True):
     """
     Args: 
     red_file: the name of data containing info of red wine
@@ -73,7 +73,7 @@ def preprocessing(red_file, white_file, output_file=None, test_size = 0.2, rd_st
         X, y,
         test_size=test_size,
         random_state=rd_state,
-        stratify=X['red'],       # 0=white, 1=red
+        stratify=X['red'] if stratify else None,       # 0=white, 1=red
     )
     return X_train, y_train, X_test, y_test
 
