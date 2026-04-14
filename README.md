@@ -1,1 +1,2 @@
-# CSCC11-Wine-Quality-Regression
+# UCI-Wine-Quality-Regression
+[View Report](./report.pdf)
