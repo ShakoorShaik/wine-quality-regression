@@ -7,4 +7,4 @@
 ![Page 6](./docs/page5.png)
 ![Page 7](./docs/page6.png)
 
-[View Report](./report.pdf)
+[View Report PDF](./report.pdf)
